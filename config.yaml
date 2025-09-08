@@ -1,0 +1,30 @@
+# Configuration file for digit correction training
+
+# Model parameters
+model:
+  input_dim: 784  # 28x28 for MNIST-like images
+  hidden_dim: 128
+  output_dim: 10  # 10 digits
+  learning_rate: 0.001
+
+# Training parameters
+training:
+  max_epochs: 10
+  batch_size: 32
+  num_workers: 4
+  accelerator: auto  # auto, cpu, gpu, tpu
+  devices: auto      # auto, 1, 2, etc.
+  precision: 32      # 16, 32, 64
+
+# Logging parameters
+logging:
+  experiment_name: "digit_correction"
+  log_dir: "./lightning_logs"
+  log_every_n_steps: 50
+
+# Data parameters
+data:
+  data_dir: "./data"
+  train_split: 0.8
+  val_split: 0.2
+  random_seed: 42

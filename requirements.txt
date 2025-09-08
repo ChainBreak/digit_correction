@@ -1,0 +1,21 @@
+# Core ML Libraries
+torch
+lightning
+
+# Data Science & Visualization
+numpy
+matplotlib
+pandas
+
+# CLI & Utilities
+click
+tqdm
+rich
+
+# Configuration & Logging
+omegaconf
+tensorboard
+
+# Development & Testing
+pytest
+
