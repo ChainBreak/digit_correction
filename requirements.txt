@@ -11,6 +11,7 @@ pandas
 click
 tqdm
 rich
+pydantic
 
 # Configuration & Logging
 omegaconf

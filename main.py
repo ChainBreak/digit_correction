@@ -73,15 +73,9 @@ def train(config):
         enable_progress_bar=True
     )
     
-    print("Starting training...")
-    print("Note: This is a placeholder - you'll need to provide train_dataloader and val_dataloader")
-    print("Example: trainer.fit(model, train_dataloader, val_dataloader)")
+   
+    trainer.fit(model)
     
-    # TODO: Add actual data loading here
-    # trainer.fit(model, train_dataloader, val_dataloader)
-    
-    print("Training setup complete! Add your data loaders to start actual training.")
-
 
 @cli.command()
 def predict():

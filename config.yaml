@@ -6,15 +6,17 @@ model:
   hidden_dim: 128
   output_dim: 10  # 10 digits
   learning_rate: 0.001
+  dataset: ${dataset}
+  batch_size: 4
 
 # Training parameters
 training:
   max_epochs: 10
-  batch_size: 32
   num_workers: 4
   accelerator: auto  # auto, cpu, gpu, tpu
   devices: auto      # auto, 1, 2, etc.
   precision: 32      # 16, 32, 64
+ 
 
 # Logging parameters
 logging:
@@ -23,8 +25,9 @@ logging:
   log_every_n_steps: 50
 
 # Data parameters
-data:
-  data_dir: "./data"
-  train_split: 0.8
-  val_split: 0.2
-  random_seed: 42
+dataset:
+  dataset_size: 1000000
+  num_digits: 6
+  conditional: true
+  augmentation_prob: 0.5
+  token_length: 20
