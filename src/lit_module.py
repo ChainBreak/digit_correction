@@ -36,6 +36,7 @@ class DigitCorrectionLitModule(L.LightningModule):
     
     def training_step(self, batch, batch_idx):
         print(batch)
+        exit()
         loss = 0
         return loss
 
