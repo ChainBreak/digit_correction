@@ -26,9 +26,9 @@ class NumberDataset(torch.utils.data.Dataset):
         num_str = f"{num:0{self.config.num_digits}d}"
 
         if self.config.conditional:
-            text = f"[{num_str},{num_str}]"
+            text = f"{num_str},{num_str}"
         else:
-            text = f"[{num_str}]"
+            text = f"{num_str}"
 
         input_token_ids, target_token_ids, mask = self.tokenizer.encode(text, target_length=self.config.token_length)
         input_token_ids = torch.tensor(input_token_ids)
