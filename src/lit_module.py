@@ -11,6 +11,7 @@ from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from src.dataset import NumberDataset
+from src.model import TransformerModel
 
 class DigitCorrectionLitModule(L.LightningModule):
     """
@@ -24,24 +25,31 @@ class DigitCorrectionLitModule(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.config = config
-        self.model = self.create_model()
+        self.model = TransformerModel(self.config.model)
 
-    def create_model(self):
-        """Create the model"""
-        return nn.Linear(self.config.input_dim, self.config.output_dim)
-        
     def forward(self, x):
         """Forward pass through the network"""
-        pass
+        return self.model(x)
     
     def training_step(self, batch, batch_idx):
-        print(batch)
-        exit()
-        loss = 0
+        input_token_ids = batch["input_token_ids"]
+        target_token_ids = batch["target_token_ids"]
+        mask = batch["mask"]
+
+        output_token_logits = self.model(input_token_ids)
+
+        # reshape for cross_entropy
+        output_token_logits = output_token_logits.reshape(-1, output_token_logits.shape[-1])
+        target_token_ids = target_token_ids.reshape(-1)
+        mask = mask.reshape(-1)
+
+        loss = F.cross_entropy(output_token_logits, target_token_ids, reduction="none")
+        loss = (loss * mask).sum() / mask.sum()
+        self.log("train_loss", loss, prog_bar=True)
         return loss
 
     @override
-    def train_dataloader(self) -> torch.utils.data.DataLoader:
+    def train_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
         dataset = NumberDataset(self.config.dataset)
         return torch.utils.data.DataLoader(dataset, batch_size=self.config.batch_size)
 

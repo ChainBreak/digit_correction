@@ -50,7 +50,7 @@ def train(config):
     
     # Instantiate the Lightning module
     print("Instantiating Lightning module...")
-    model = DigitCorrectionLitModule(cfg.model)
+    model = DigitCorrectionLitModule(cfg.lit_module)
     
     # Create TensorBoard logger
     print("Setting up TensorBoard logger...")

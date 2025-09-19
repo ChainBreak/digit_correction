@@ -1,13 +1,18 @@
 # Configuration file for digit correction training
 
 # Model parameters
-model:
-  input_dim: 784  # 28x28 for MNIST-like images
-  hidden_dim: 128
-  output_dim: 10  # 10 digits
-  learning_rate: 0.001
+lit_module:
+  model: ${model}
   dataset: ${dataset}
+  learning_rate: 0.001
   batch_size: 4
+
+model:
+  vocab_size: 17
+  embed_dim: 64
+  num_layers: 4
+  num_heads: 4
+  hidden_dim: 128
 
 # Training parameters
 training:
@@ -30,4 +35,4 @@ dataset:
   num_digits: 6
   conditional: true
   augmentation_prob: 0.5
-  token_length: 20
+  token_length: 15
