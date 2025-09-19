@@ -5,7 +5,7 @@ lit_module:
   model: ${model}
   dataset: ${dataset}
   learning_rate: 0.001
-  batch_size: 4
+  batch_size: 128
 
 model:
   vocab_size: 17
@@ -13,7 +13,7 @@ model:
   num_layers: 4
   num_heads: 4
   hidden_dim: 128
-
+  max_token_length: 20
 # Training parameters
 training:
   max_epochs: 10

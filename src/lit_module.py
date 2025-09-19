@@ -45,6 +45,7 @@ class DigitCorrectionLitModule(L.LightningModule):
 
         loss = F.cross_entropy(output_token_logits, target_token_ids, reduction="none")
         loss = (loss * mask).sum() / mask.sum()
+        
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
