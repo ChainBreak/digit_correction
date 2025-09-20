@@ -65,7 +65,7 @@ class PositionalEncoding(nn.Module):
         encoding[:, 0::2] = torch.sin(position * div_term)
         encoding[:, 1::2] = torch.cos(position * div_term)
         encoding = encoding.unsqueeze(0)
-        self.encoding = nn.Parameter(encoding, requires_grad=False)
+        self.register_buffer("encoding", encoding)
     
     def forward(self, x):
         input_len = x.shape[1]
