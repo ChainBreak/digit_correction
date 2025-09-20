@@ -53,6 +53,7 @@ class TransformerModel(nn.Module):
         x = self.classifier(x)
         return x
 
+@final
 class PositionalEncoding(nn.Module):
     def __init__(self, embed_dim, max_len):
         super().__init__()
@@ -64,13 +65,13 @@ class PositionalEncoding(nn.Module):
         encoding[:, 0::2] = torch.sin(position * div_term)
         encoding[:, 1::2] = torch.cos(position * div_term)
         encoding = encoding.unsqueeze(0)
-        self.register_buffer("encoding", encoding)
-
+        self.encoding = nn.Parameter(encoding, requires_grad=False)
+    
     def forward(self, x):
         input_len = x.shape[1]
 
         # cut down the encoding to the input length
         encoding = self.encoding[:,:input_len, :]
-        
+
         x = x + encoding
         return x
