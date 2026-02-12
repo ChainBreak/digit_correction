@@ -30,16 +30,17 @@ class NumberDataset(torch.utils.data.Dataset):
         else:
             text = f"{num_str}"
 
-        input_token_ids, target_token_ids, mask = self.tokenizer.encode(text, target_length=self.config.token_length)
-        input_token_ids = torch.tensor(input_token_ids)
-        target_token_ids = torch.tensor(target_token_ids)
-        mask = torch.tensor(mask)
+        input_token_ids, target_token_ids, position_indices, padding_mask = self.tokenizer.encode(
+            text=text,
+            target_length=self.config.token_length,
+        )
         
         return {
             "text": text,
-            "input_token_ids": input_token_ids,
-            "target_token_ids": target_token_ids, 
-            "mask": mask,
+            "input_token_ids": torch.tensor(input_token_ids),
+            "target_token_ids": torch.tensor(target_token_ids), 
+            "position_indices": torch.tensor(position_indices),
+            "padding_mask": torch.tensor(padding_mask, dtype=torch.bool),
         }
 
 

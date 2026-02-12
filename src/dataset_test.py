@@ -16,4 +16,5 @@ def test_dataset():
         print(sample["text"])
         print(sample["input_token_ids"])
         print(sample["target_token_ids"])
+        print(sample["position_indices"])
         print(sample["mask"])

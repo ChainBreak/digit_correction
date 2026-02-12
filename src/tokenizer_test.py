@@ -5,8 +5,6 @@ Simple round trip test for the tokenizer using pytest.
 import pytest
 from .tokenizer import Tokenizer
 
-
-
 @pytest.mark.parametrize("text,target_length", [
     ("0123456789", 11),          # All digits
     ("0123456789", 20),          # All digits
@@ -20,15 +18,19 @@ def test_tokenizer_round_trip(text, target_length):
     tokenizer = Tokenizer()
     
     # Encode: text -> list[int]
-    input_ids, target_ids, mask = tokenizer.encode(text, target_length=target_length)
+    input_ids, target_ids, position_indices, mask = tokenizer.encode(text, target_length=target_length)
 
-    assert len(input_ids) == len(target_ids) == len(mask), f"Lengths of input_ids, target_ids, and mask are not equal"
+    assert len(input_ids) == len(target_ids) == len(position_indices) == len(mask) , f"Lengths of input_ids, target_ids, position_indices, and mask are not equal"
     assert len(input_ids) == target_length, f"Length of input_ids is not equal to target_length"
 
-    complete_ids = input_ids[0:1] + target_ids
 
-    # Decode: list[int] -> text
-    decoded_text = tokenizer.decode(complete_ids)
-    
-    # Assert round trip is successful
-    assert decoded_text == text, f"Round trip failed: '{text}' -> {complete_ids} -> '{decoded_text}'"
+tokenizer = Tokenizer()
+s = tokenizer._sos_token
+e = tokenizer._eos_token
+p = tokenizer._pad_token
+@pytest.mark.parametrize("token_ids, target_string", [
+    ([7,p,p,s,1, 2, 3,e,p,8], "123"),
+])
+def test_tokenizer_decode(token_ids, target_string):
+    decoded_string = tokenizer.decode(token_ids)
+    assert decoded_string == target_string, f"Decoded string is not equal to target string"

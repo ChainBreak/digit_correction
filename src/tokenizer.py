@@ -24,19 +24,27 @@ class Tokenizer():
         text: str,
         target_length: int = 0,
         **kwargs
-    ) -> tuple[list[int], list[int], list[int]]:
+    ) -> tuple[list[int], list[int], list[int], list[int]]:
     
         token_ids = [self._vocab[c] for c in text]
         input_token_ids = [self._sos_token] + token_ids
         target_token_ids = token_ids + [self._eos_token]
-        mask = [1] * len(input_token_ids)
+        positive_mask = [1] * len(input_token_ids)
+        position_indices = list(range(len(input_token_ids)))
 
+        # Create paddings
         padding_needed = max(target_length - len(input_token_ids), 0)
-        input_token_ids += [self._pad_token] * padding_needed
-        target_token_ids += [self._pad_token] * padding_needed
-        mask += [0] * padding_needed
+        padding = [self._pad_token] * padding_needed
+        negative_mask = [0] * padding_needed
+        blank_position_indices = [0] * padding_needed
 
-        return input_token_ids, target_token_ids, mask
+        # Pad the front of the lists
+        input_token_ids = padding + input_token_ids
+        target_token_ids = padding + target_token_ids
+        mask = negative_mask + positive_mask
+        position_indices = blank_position_indices + position_indices
+
+        return input_token_ids, target_token_ids, position_indices, mask
     
     def decode(
         self,
@@ -44,10 +52,15 @@ class Tokenizer():
         **kwargs
     ) -> str:
 
+        # Find the first index where the token id is equal to self._sos_token
+        
+        sos_index = token_ids.index(self._sos_token)
+        eos_index = token_ids.index(self._eos_token)
+
+        token_ids = token_ids[sos_index + 1:eos_index]
+
         text = "".join([self._reverse_vocab[i] for i in token_ids])
-        text = text.replace("<PAD>", "")
-        text = text.replace("<SOS>", "")
-        text = text.replace("<EOS>", "")
+        
         return text
     
     

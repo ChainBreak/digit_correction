@@ -27,9 +27,9 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.config = config
         self.model = TransformerModel(self.config.model)
 
-    def forward(self, x):
+    def forward(self, x, padding_mask, position_indices):
         """Forward pass through the network"""
-        return self.model(x)
+        return self.model(x, padding_mask, position_indices)
 
     def auto_regress(self, x):
         """Auto-regressive decoding"""
@@ -42,17 +42,17 @@ class DigitCorrectionLitModule(L.LightningModule):
     def training_step(self, batch, batch_idx):
         input_token_ids = batch["input_token_ids"]
         target_token_ids = batch["target_token_ids"]
-        mask = batch["mask"]
-
-        output_token_logits = self.model(input_token_ids)
+        position_indices = batch["position_indices"]
+        padding_mask = batch["padding_mask"]
+        output_token_logits = self.model(input_token_ids, padding_mask, position_indices)
 
         # reshape for cross_entropy
         output_token_logits = output_token_logits.reshape(-1, output_token_logits.shape[-1])
         target_token_ids = target_token_ids.reshape(-1)
-        mask = mask.reshape(-1)
+        padding_mask = padding_mask.reshape(-1)
 
         loss = F.cross_entropy(output_token_logits, target_token_ids, reduction="none")
-        loss = (loss * mask).sum() / mask.sum()
+        loss = (loss * padding_mask).sum() / padding_mask.sum()
 
         self.log("train_loss", loss, prog_bar=True)
         return loss
