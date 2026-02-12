@@ -30,6 +30,14 @@ class DigitCorrectionLitModule(L.LightningModule):
     def forward(self, x):
         """Forward pass through the network"""
         return self.model(x)
+
+    def auto_regress(self, x):
+        """Auto-regressive decoding"""
+        for i in range(x.shape[1]):
+            output_token_logits = self.model(x)
+            next_token = torch.argmax(output_token_logits[:, i, :], dim=-1)
+            x = torch.cat([x, next_token.unsqueeze(1)], dim=1)
+        return x
     
     def training_step(self, batch, batch_idx):
         input_token_ids = batch["input_token_ids"]
@@ -45,7 +53,7 @@ class DigitCorrectionLitModule(L.LightningModule):
 
         loss = F.cross_entropy(output_token_logits, target_token_ids, reduction="none")
         loss = (loss * mask).sum() / mask.sum()
-        
+
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
@@ -54,7 +62,11 @@ class DigitCorrectionLitModule(L.LightningModule):
         dataset = NumberDataset(self.config.dataset)
         return torch.utils.data.DataLoader(dataset, batch_size=self.config.batch_size)
 
-    
+    @override
+    def val_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
+        dataset = NumberDataset(self.config.dataset)
+        return torch.utils.data.DataLoader(dataset, batch_size=self.config.batch_size)
+
     def configure_optimizers(self):
         """Configure optimizers and learning rate schedulers"""
         optimizer = Adam(self.parameters(), lr=self.config.learning_rate)
