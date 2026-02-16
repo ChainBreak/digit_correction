@@ -44,6 +44,7 @@ class NumberDataset(torch.utils.data.Dataset):
         
         return {
             "text": text,
+            "number": num,
             "input_token_ids": torch.tensor(input_token_ids),
             "target_token_ids": torch.tensor(target_token_ids), 
             "position_indices": torch.tensor(position_indices),

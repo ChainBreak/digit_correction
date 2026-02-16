@@ -32,6 +32,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.tokenizer = Tokenizer()
         self.model = TransformerModel(self.config.model)
         self._val_numbers: list[int] = []
+        self._true_numbers: list[int] = []
 
     def forward(self, x, padding_mask, position_indices):
         """Forward pass through the network"""
@@ -58,6 +59,7 @@ class DigitCorrectionLitModule(L.LightningModule):
 
     def on_validation_epoch_start(self):
         self._val_numbers: list[int] = []
+        self._true_numbers: list[int] = []
 
     def validation_step(self, batch, batch_idx):
         input_token_ids = batch["input_token_ids"]
@@ -70,14 +72,15 @@ class DigitCorrectionLitModule(L.LightningModule):
 
         numbers = [self.text_to_int(text) for text in text_batch]
         self._val_numbers.extend(numbers)
-
-        return {"numbers": numbers}
+        self._true_numbers.extend(batch["number"].tolist())
+   
 
     def on_validation_epoch_end(self):
         if not self._val_numbers or self.logger is None:
             return
         fig, ax = plt.subplots()
-        ax.hist(self._val_numbers, bins=100, range=(0, 1_000_000), edgecolor="black", alpha=0.7)
+        ax.hist(self._val_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="Predicted numbers")
+        ax.hist(self._true_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="True numbers")
         ax.set_xlabel("Number")
         ax.set_ylabel("Count")
         ax.set_title("Validation predicted numbers")
