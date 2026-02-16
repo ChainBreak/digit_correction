@@ -58,5 +58,6 @@ class NumberDataset(torch.utils.data.Dataset):
         middle_number = max_number // 2
 
         number = random.normalvariate(middle_number, max_number / 10)
+        number = min(max(number, 0), max_number)
 
         return int(number)

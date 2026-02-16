@@ -7,6 +7,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import lightning as L
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -28,6 +31,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.config = config
         self.tokenizer = Tokenizer()
         self.model = TransformerModel(self.config.model)
+        self._val_numbers: list[int] = []
 
     def forward(self, x, padding_mask, position_indices):
         """Forward pass through the network"""
@@ -52,6 +56,9 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
+    def on_validation_epoch_start(self):
+        self._val_numbers: list[int] = []
+
     def validation_step(self, batch, batch_idx):
         input_token_ids = batch["input_token_ids"]
         position_indices = batch["position_indices"]
@@ -59,7 +66,27 @@ class DigitCorrectionLitModule(L.LightningModule):
         
         input_token_ids = self.auto_regress(input_token_ids, padding_mask, position_indices)
 
-        decoded_text = self.decode(input_token_ids)
+        text_batch = self.decode(input_token_ids)
+
+        numbers = [self.text_to_int(text) for text in text_batch]
+        self._val_numbers.extend(numbers)
+
+        return {"numbers": numbers}
+
+    def on_validation_epoch_end(self):
+        if not self._val_numbers or self.logger is None:
+            return
+        fig, ax = plt.subplots()
+        ax.hist(self._val_numbers, bins=100, range=(0, 1_000_000), edgecolor="black", alpha=0.7)
+        ax.set_xlabel("Number")
+        ax.set_ylabel("Count")
+        ax.set_title("Validation predicted numbers")
+        if hasattr(self.logger, "experiment"):
+            self.logger.experiment.add_figure(
+                "validation/numbers_histogram", fig, self.current_epoch
+            )
+        plt.close(fig)
+
 
     def auto_regress(self, input_token_ids, padding_mask, position_indices):
         for _ in range(self.config.model.max_token_length):
@@ -81,6 +108,12 @@ class DigitCorrectionLitModule(L.LightningModule):
 
     def decode(self, token_id_batch: torch.Tensor) -> list[str]:
         return [self.tokenizer.decode(tokens_ids.tolist()) for tokens_ids in token_id_batch]
+
+    def text_to_int(self, text: str) -> int:
+        try:
+            return int(text)
+        except ValueError:
+            return 0 
 
     @override
     def train_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
