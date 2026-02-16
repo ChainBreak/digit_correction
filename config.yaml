@@ -3,7 +3,8 @@
 # Model parameters
 lit_module:
   model: ${model}
-  dataset: ${dataset}
+  dataset_train: ${dataset_train}
+  dataset_validation: ${dataset_validation}
   learning_rate: 0.001
   batch_size: 128
 
@@ -30,9 +31,18 @@ logging:
   log_every_n_steps: 50
 
 # Data parameters
-dataset:
-  dataset_size: 1000000
+dataset_train:
+  validation: false
+  dataset_size: 100000
   num_digits: 6
   conditional: true
   augmentation_prob: 0.5
   token_length: 15
+
+dataset_validation:
+  dataset_size: 10000
+  validation: true
+  num_digits: ${dataset_train.num_digits}
+  conditional: ${dataset_train.conditional}
+  augmentation_prob: ${dataset_train.augmentation_prob}
+  token_length: ${dataset_train.token_length}

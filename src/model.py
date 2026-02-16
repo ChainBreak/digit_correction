@@ -64,15 +64,13 @@ class PositionEmbedding(nn.Module):
         div_term = torch.exp(torch.arange(0, embed_dim, 2).float() * (-math.log(10000.0) / embed_dim))
         embedding[:, 0::2] = torch.sin(position * div_term)
         embedding[:, 1::2] = torch.cos(position * div_term)
-        # embedding = embedding.unsqueeze(0)
+
         self.register_buffer("embedding", embedding)
     
     def forward(self, x: torch.Tensor, position_indices: torch.Tensor) -> torch.Tensor:
 
-    
         # Collect the embeddings at the position indices
         embedding = self.embedding[position_indices]
-
 
         x = x + embedding
         return x

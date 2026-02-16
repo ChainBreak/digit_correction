@@ -55,12 +55,20 @@ class Tokenizer():
         # Find the first index where the token id is equal to self._sos_token
         
         sos_index = token_ids.index(self._sos_token)
-        eos_index = token_ids.index(self._eos_token)
+        try:
+            eos_index = token_ids.index(self._eos_token)
+        except ValueError:
+            eos_index = len(token_ids)
 
         token_ids = token_ids[sos_index + 1:eos_index]
 
-        text = "".join([self._reverse_vocab[i] for i in token_ids])
+        text = "".join([self.id_to_char(i) for i in token_ids])
         
         return text
+
+    def id_to_char(self, index: int) -> str:
+        if index < 0 or index >= len(self._reverse_vocab):
+            return "?"
+        return self._reverse_vocab[index]
     
     

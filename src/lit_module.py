@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from src.dataset import NumberDataset
 from src.model import TransformerModel
+from src.tokenizer import Tokenizer
 
 class DigitCorrectionLitModule(L.LightningModule):
     """
@@ -25,19 +26,13 @@ class DigitCorrectionLitModule(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.config = config
+        self.tokenizer = Tokenizer()
         self.model = TransformerModel(self.config.model)
 
     def forward(self, x, padding_mask, position_indices):
         """Forward pass through the network"""
         return self.model(x, padding_mask, position_indices)
 
-    def auto_regress(self, x):
-        """Auto-regressive decoding"""
-        for i in range(x.shape[1]):
-            output_token_logits = self.model(x)
-            next_token = torch.argmax(output_token_logits[:, i, :], dim=-1)
-            x = torch.cat([x, next_token.unsqueeze(1)], dim=1)
-        return x
     
     def training_step(self, batch, batch_idx):
         input_token_ids = batch["input_token_ids"]
@@ -57,14 +52,44 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
+    def validation_step(self, batch, batch_idx):
+        input_token_ids = batch["input_token_ids"]
+        position_indices = batch["position_indices"]
+        padding_mask = batch["padding_mask"]
+        
+        input_token_ids = self.auto_regress(input_token_ids, padding_mask, position_indices)
+
+        decoded_text = self.decode(input_token_ids)
+
+    def auto_regress(self, input_token_ids, padding_mask, position_indices):
+        for _ in range(self.config.model.max_token_length):
+            input_token_ids, position_indices, padding_mask = self.auto_regress_step(input_token_ids, padding_mask, position_indices)
+        return input_token_ids
+
+    def auto_regress_step(self, input_token_ids, padding_mask, position_indices):
+
+        output_token_logits = self.model(input_token_ids, padding_mask, position_indices)
+        output_token_probs = F.softmax(output_token_logits[:, -1, :], dim=-1)
+        next_token = torch.multinomial(output_token_probs, num_samples=1)
+
+
+        input_token_ids = torch.cat([input_token_ids, next_token], dim=1)
+        position_indices = torch.cat([position_indices, position_indices[:, -1:] + 1], dim=1)
+        padding_mask = torch.cat([padding_mask, torch.ones_like(padding_mask[:, -1:])], dim=1)
+
+        return input_token_ids, position_indices, padding_mask
+
+    def decode(self, token_id_batch: torch.Tensor) -> list[str]:
+        return [self.tokenizer.decode(tokens_ids.tolist()) for tokens_ids in token_id_batch]
+
     @override
     def train_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
-        dataset = NumberDataset(self.config.dataset)
+        dataset = NumberDataset(self.config.dataset_train, tokenizer=self.tokenizer)
         return torch.utils.data.DataLoader(dataset, batch_size=self.config.batch_size)
 
     @override
     def val_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
-        dataset = NumberDataset(self.config.dataset)
+        dataset = NumberDataset(self.config.dataset_validation, tokenizer=self.tokenizer)
         return torch.utils.data.DataLoader(dataset, batch_size=self.config.batch_size)
 
     def configure_optimizers(self):

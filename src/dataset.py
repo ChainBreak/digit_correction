@@ -11,11 +11,12 @@ class NumberDatasetConfig(BaseModel):
     conditional: bool
     augmentation_prob: float
     token_length: int
+    validation: bool
 
 class NumberDataset(torch.utils.data.Dataset):
-    def __init__(self, config: NumberDatasetConfig):
+    def __init__(self, config: NumberDatasetConfig,  tokenizer: Tokenizer):
         self.config = config
-        self.tokenizer = Tokenizer()
+        self.tokenizer = tokenizer
 
 
     def __len__(self):
@@ -26,9 +27,15 @@ class NumberDataset(torch.utils.data.Dataset):
         num_str = f"{num:0{self.config.num_digits}d}"
 
         if self.config.conditional:
-            text = f"{num_str},{num_str}"
+            if self.config.validation:
+                text = f"{num_str},"
+            else:
+                text = f"{num_str},{num_str}"
         else:
-            text = f"{num_str}"
+            if self.config.validation:
+                text = ""
+            else:
+                text = f"{num_str}"
 
         input_token_ids, target_token_ids, position_indices, padding_mask = self.tokenizer.encode(
             text=text,
@@ -46,4 +53,10 @@ class NumberDataset(torch.utils.data.Dataset):
 
 
     def sample_random_number_from_distribution(self):
-        return random.randint(0, 10 ** self.config.num_digits - 1)
+        max_number = 10 ** self.config.num_digits - 1
+        
+        middle_number = max_number // 2
+
+        number = random.normalvariate(middle_number, max_number / 10)
+
+        return int(number)
