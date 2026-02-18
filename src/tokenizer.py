@@ -29,13 +29,13 @@ class Tokenizer():
         token_ids = [self._vocab[c] for c in text]
         input_token_ids = [self._sos_token] + token_ids
         target_token_ids = token_ids + [self._eos_token]
-        positive_mask = [1] * len(input_token_ids)
+        positive_mask = [0] * len(input_token_ids)
         position_indices = list(range(len(input_token_ids)))
 
         # Create paddings
         padding_needed = max(target_length - len(input_token_ids), 0)
         padding = [self._pad_token] * padding_needed
-        negative_mask = [0] * padding_needed
+        negative_mask = [1] * padding_needed
         blank_position_indices = [0] * padding_needed
 
         # Pad the front of the lists

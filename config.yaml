@@ -11,7 +11,7 @@ lit_module:
 model:
   vocab_size: 17
   embed_dim: 64
-  num_layers: 4
+  num_layers: 5
   num_heads: 4
   hidden_dim: 128
   max_token_length: 20

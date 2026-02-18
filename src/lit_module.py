@@ -2,6 +2,7 @@
 PyTorch Lightning module for digit correction.
 """
 
+from math import e
 from typing import override
 import torch
 import torch.nn as nn
@@ -33,6 +34,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.model = TransformerModel(self.config.model)
         self._val_numbers: list[int] = []
         self._true_numbers: list[int] = []
+        self._prompt_numbers: list[int] = []
 
     def forward(self, x, padding_mask, position_indices):
         """Forward pass through the network"""
@@ -44,15 +46,25 @@ class DigitCorrectionLitModule(L.LightningModule):
         target_token_ids = batch["target_token_ids"]
         position_indices = batch["position_indices"]
         padding_mask = batch["padding_mask"]
+        loss_mask = 1-padding_mask.float()
+        print(f"""
+target_token_ids:  {target_token_ids[0].tolist()}
+input_token_ids:  {input_token_ids[0].tolist()}
+padding_mask:     {(padding_mask[0]*1).tolist()}
+position_indices: {position_indices[0].tolist()}
+loss_mask:     {loss_mask[0].tolist()}
+        """)
+
         output_token_logits = self.model(input_token_ids, padding_mask, position_indices)
 
         # reshape for cross_entropy
         output_token_logits = output_token_logits.reshape(-1, output_token_logits.shape[-1])
         target_token_ids = target_token_ids.reshape(-1)
-        padding_mask = padding_mask.reshape(-1)
+        loss_mask = loss_mask.reshape(-1)
 
         loss = F.cross_entropy(output_token_logits, target_token_ids, reduction="none")
-        loss = (loss * padding_mask).sum() / padding_mask.sum()
+        loss = (loss * loss_mask).sum() / loss_mask.sum()
+
 
         self.log("train_loss", loss, prog_bar=True)
         return loss
@@ -60,30 +72,41 @@ class DigitCorrectionLitModule(L.LightningModule):
     def on_validation_epoch_start(self):
         self._val_numbers: list[int] = []
         self._true_numbers: list[int] = []
+        self._prompt_numbers: list[int] = []
 
     def validation_step(self, batch, batch_idx):
         input_token_ids = batch["input_token_ids"]
         position_indices = batch["position_indices"]
         padding_mask = batch["padding_mask"]
+        numbers = batch["number"]
         
         input_token_ids = self.auto_regress(input_token_ids, padding_mask, position_indices)
 
         text_batch = self.decode(input_token_ids)
+        
+        print(f"\n{text_batch[0]}\n")
 
-        numbers = [self.text_to_int(text) for text in text_batch]
-        self._val_numbers.extend(numbers)
-        self._true_numbers.extend(batch["number"].tolist())
+        for i, text in enumerate(text_batch):
+            try:
+                # prompt_number, val_number = text.split(",")
+                prompt_number = val_number = text
+                self._prompt_numbers.append(self.text_to_int(prompt_number))
+                self._val_numbers.append(self.text_to_int(val_number))
+                self._true_numbers.append(numbers[i].item())
+            except ValueError as e:
+                print(e)
    
-
     def on_validation_epoch_end(self):
         if not self._val_numbers or self.logger is None:
             return
         fig, ax = plt.subplots()
-        ax.hist(self._val_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="Predicted numbers")
+        ax.hist(self._prompt_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="Prompt numbers")
         ax.hist(self._true_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="True numbers")
+        ax.hist(self._val_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="Predicted numbers")
         ax.set_xlabel("Number")
         ax.set_ylabel("Count")
         ax.set_title("Validation predicted numbers")
+        ax.legend()
         if hasattr(self.logger, "experiment"):
             self.logger.experiment.add_figure(
                 "validation/numbers_histogram", fig, self.current_epoch
@@ -93,6 +116,11 @@ class DigitCorrectionLitModule(L.LightningModule):
 
     def auto_regress(self, input_token_ids, padding_mask, position_indices):
         for _ in range(self.config.model.max_token_length):
+#             print(f"""
+# input_token_ids:  {input_token_ids[0].tolist()}
+# padding_mask:     {(padding_mask[0]*1).tolist()}
+# position_indices: {position_indices[0].tolist()}
+#             """)
             input_token_ids, position_indices, padding_mask = self.auto_regress_step(input_token_ids, padding_mask, position_indices)
         return input_token_ids
 
@@ -105,7 +133,7 @@ class DigitCorrectionLitModule(L.LightningModule):
 
         input_token_ids = torch.cat([input_token_ids, next_token], dim=1)
         position_indices = torch.cat([position_indices, position_indices[:, -1:] + 1], dim=1)
-        padding_mask = torch.cat([padding_mask, torch.ones_like(padding_mask[:, -1:])], dim=1)
+        padding_mask = torch.cat([padding_mask, torch.zeros_like(padding_mask[:, -1:])], dim=1)
 
         return input_token_ids, position_indices, padding_mask
 

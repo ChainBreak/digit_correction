@@ -49,7 +49,14 @@ class TransformerModel(nn.Module):
     def forward(self, x, padding_mask, position_indices) -> torch.Tensor:
         x = self.embedding(x)
         x = self.pos_encoder(x, position_indices)
-        x = self.transformer(x, src_key_padding_mask=padding_mask)
+        seq_len = x.shape[1]
+        causal_mask = torch.triu(torch.full((seq_len, seq_len), -1e6, device=x.device, dtype=torch.float), diagonal=1)
+
+        x = self.transformer(
+            x,
+            mask=causal_mask,
+            src_key_padding_mask=padding_mask,
+        )
         x = self.classifier(x)
         return x
 
