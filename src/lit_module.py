@@ -88,8 +88,8 @@ loss_mask:     {loss_mask[0].tolist()}
 
         for i, text in enumerate(text_batch):
             try:
-                # prompt_number, val_number = text.split(",")
-                prompt_number = val_number = text
+                prompt_number, val_number = text.split(",")
+               
                 self._prompt_numbers.append(self.text_to_int(prompt_number))
                 self._val_numbers.append(self.text_to_int(val_number))
                 self._true_numbers.append(numbers[i].item())

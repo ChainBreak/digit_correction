@@ -65,7 +65,7 @@ class NumberDataset(torch.utils.data.Dataset):
         return int(number)
 
     def augment_number_string(self, num_str: str) -> str:
-        for _ in range(1):
+        for _ in range(2):
             position = random.randint(0, len(num_str) - 1)
             num_char = random.choice(list("0123456789"))
             num_str = num_str[:position] + num_char + num_str[position + 1:] # replace the digit at the position

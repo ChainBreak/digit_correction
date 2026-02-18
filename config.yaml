@@ -35,7 +35,7 @@ dataset_train:
   validation: false
   dataset_size: 100000
   num_digits: 6
-  conditional: false
+  conditional: true
   augmentation_prob: 0.5
   token_length: 15
 
