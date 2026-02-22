@@ -52,20 +52,25 @@ class NumberDataset(torch.utils.data.Dataset):
             "padding_mask": torch.tensor(padding_mask, dtype=torch.bool),
         }
 
-
-
     def sample_random_number_from_distribution(self):
         max_number = 10 ** self.config.num_digits - 1
-        
-        middle_number = max_number // 3
+        base_std = max_number / 10
 
-        number = random.normalvariate(middle_number, max_number / 10)
+        # Weighted choices: (mean, std) with sample weights
+        choices = [
+            (max_number * 1 / 3, max_number / 20),       # peak at 1/3
+            (max_number * 2 / 3, max_number / 8),   # peak at 2/3
+        ]
+        weights = [0.5, 0.5]
+        mean, std = random.choices(choices, weights=weights, k=1)[0]
+        number = random.normalvariate(mean, std)
         number = min(max(number, 0), max_number)
 
         return int(number)
 
     def augment_number_string(self, num_str: str) -> str:
-        for _ in range(2):
+        num_edits = random.randint(1, 3)
+        for _ in range(num_edits):
             position = random.randint(0, len(num_str) - 1)
             num_char = random.choice(list("0123456789"))
             num_str = num_str[:position] + num_char + num_str[position + 1:] # replace the digit at the position

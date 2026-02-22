@@ -2,8 +2,9 @@
 PyTorch Lightning module for digit correction.
 """
 
+from collections import defaultdict
 from math import e
-from typing import override
+from typing import Any, override
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,6 +14,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from torch.optim import Adam
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+import Levenshtein
 
 from src.dataset import NumberDataset
 from src.model import TransformerModel
@@ -32,9 +34,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.config = config
         self.tokenizer = Tokenizer()
         self.model = TransformerModel(self.config.model)
-        self._val_numbers: list[int] = []
-        self._true_numbers: list[int] = []
-        self._prompt_numbers: list[int] = []
+        self._validation_results: defaultdict[str, list[int|float]] = defaultdict(list)
 
     def forward(self, x, padding_mask, position_indices):
         """Forward pass through the network"""
@@ -47,13 +47,13 @@ class DigitCorrectionLitModule(L.LightningModule):
         position_indices = batch["position_indices"]
         padding_mask = batch["padding_mask"]
         loss_mask = 1-padding_mask.float()
-        print(f"""
-target_token_ids:  {target_token_ids[0].tolist()}
-input_token_ids:  {input_token_ids[0].tolist()}
-padding_mask:     {(padding_mask[0]*1).tolist()}
-position_indices: {position_indices[0].tolist()}
-loss_mask:     {loss_mask[0].tolist()}
-        """)
+#         print(f"""
+# target_token_ids:  {target_token_ids[0].tolist()}
+# input_token_ids:  {input_token_ids[0].tolist()}
+# padding_mask:     {(padding_mask[0]*1).tolist()}
+# position_indices: {position_indices[0].tolist()}
+# loss_mask:     {loss_mask[0].tolist()}
+#         """)
 
         output_token_logits = self.model(input_token_ids, padding_mask, position_indices)
 
@@ -70,9 +70,7 @@ loss_mask:     {loss_mask[0].tolist()}
         return loss
 
     def on_validation_epoch_start(self):
-        self._val_numbers: list[int] = []
-        self._true_numbers: list[int] = []
-        self._prompt_numbers: list[int] = []
+        self._validation_results = defaultdict(list)
 
     def validation_step(self, batch, batch_idx):
         input_token_ids = batch["input_token_ids"]
@@ -84,25 +82,28 @@ loss_mask:     {loss_mask[0].tolist()}
 
         text_batch = self.decode(input_token_ids)
         
-        print(f"\n{text_batch[0]}\n")
+        # print(f"\n{text_batch[0]}\n")
 
         for i, text in enumerate(text_batch):
             try:
                 prompt_number, val_number = text.split(",")
+                edit_ratio = Levenshtein.ratio(prompt_number, val_number)
                
-                self._prompt_numbers.append(self.text_to_int(prompt_number))
-                self._val_numbers.append(self.text_to_int(val_number))
-                self._true_numbers.append(numbers[i].item())
+                self._validation_results["similarity_ratios"].append(edit_ratio)
+                self._validation_results["prompt_numbers"].append(self.text_to_int(prompt_number))
+                self._validation_results["val_numbers"].append(self.text_to_int(val_number))
+                self._validation_results["true_numbers"].append(numbers[i].item())
             except ValueError as e:
                 print(e)
    
     def on_validation_epoch_end(self):
-        if not self._val_numbers or self.logger is None:
+        if not self._validation_results["val_numbers"] or self.logger is None:
             return
+
         fig, ax = plt.subplots()
-        ax.hist(self._prompt_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="Prompt numbers")
-        ax.hist(self._true_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="True numbers")
-        ax.hist(self._val_numbers, bins=100, range=(0, 1_000_000), alpha=0.5, label="Predicted numbers")
+        ax.hist(self._validation_results["prompt_numbers"], bins=100, range=(0, 1_000_000), alpha=0.5, label="Prompt numbers")
+        ax.hist(self._validation_results["true_numbers"], bins=100, range=(0, 1_000_000), alpha=0.5, label="True numbers")
+        ax.hist(self._validation_results["val_numbers"], bins=100, range=(0, 1_000_000), alpha=0.5, label="Predicted numbers")
         ax.set_xlabel("Number")
         ax.set_ylabel("Count")
         ax.set_title("Validation predicted numbers")
@@ -112,6 +113,9 @@ loss_mask:     {loss_mask[0].tolist()}
                 "validation/numbers_histogram", fig, self.current_epoch
             )
         plt.close(fig)
+
+        average_similarity_ratio = sum(self._validation_results["similarity_ratios"]) / len(self._validation_results["similarity_ratios"])
+        self.log("average_similarity_ratio", average_similarity_ratio, prog_bar=True)
 
 
     def auto_regress(self, input_token_ids, padding_mask, position_indices):

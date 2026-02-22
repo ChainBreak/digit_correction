@@ -40,7 +40,7 @@ dataset_train:
   token_length: 15
 
 dataset_validation:
-  dataset_size: 10000
+  dataset_size: 100000
   validation: true
   num_digits: ${dataset_train.num_digits}
   conditional: ${dataset_train.conditional}

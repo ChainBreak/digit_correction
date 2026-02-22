@@ -12,6 +12,7 @@ click
 tqdm
 rich
 pydantic
+python-Levenshtein
 
 # Configuration & Logging
 omegaconf
