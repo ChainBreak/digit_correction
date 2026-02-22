@@ -70,5 +70,11 @@ class NumberDataset(torch.utils.data.Dataset):
         for _ in range(num_edits):
             position = random.randint(0, len(num_str) - 1)
             num_char = random.choice(list("0123456789"))
+
+            if random.random() < self.config.delete_char_prob:
+                num_char = ""
+                
             num_str = num_str[:position] + num_char + num_str[position + 1:] # replace the digit at the position
+        
+  
         return num_str
