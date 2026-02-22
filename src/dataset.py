@@ -38,18 +38,15 @@ class NumberDataset(torch.utils.data.Dataset):
             else:
                 text = f"{num_str}"
 
-        input_token_ids, target_token_ids, position_indices, padding_mask = self.tokenizer.encode(
-            text=text,
-            target_length=self.config.token_length,
-        )
+        token_ids = self.tokenizer.encode(text=text)
+        input_token_ids = token_ids[:-1]
+        target_token_ids = token_ids[1:]
         
         return {
             "text": text,
             "number": num,
-            "input_token_ids": torch.tensor(input_token_ids),
-            "target_token_ids": torch.tensor(target_token_ids), 
-            "position_indices": torch.tensor(position_indices),
-            "padding_mask": torch.tensor(padding_mask, dtype=torch.bool),
+            "input_token_ids": input_token_ids,
+            "target_token_ids": target_token_ids, 
         }
 
     def sample_random_number_from_distribution(self):

@@ -27,7 +27,7 @@ def test_tokenizer_round_trip(text, target_length):
 tokenizer = Tokenizer()
 s = tokenizer._sos_token
 e = tokenizer._eos_token
-p = tokenizer._pad_token
+p = tokenizer.pad_token
 @pytest.mark.parametrize("token_ids, target_string", [
     ([7,p,p,s,1, 2, 3,e,p,8], "123"),
 ])

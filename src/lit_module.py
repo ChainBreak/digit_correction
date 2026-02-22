@@ -19,6 +19,7 @@ import Levenshtein
 from src.dataset import NumberDataset
 from src.model import TransformerModel
 from src.tokenizer import Tokenizer
+from src import collate
 
 class DigitCorrectionLitModule(L.LightningModule):
     """
@@ -33,6 +34,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         self.save_hyperparameters()
         self.config = config
         self.tokenizer = Tokenizer()
+        self.collator = collate.Collator(self.tokenizer)
         self.model = TransformerModel(self.config.model)
         self._validation_results: defaultdict[str, list[int|float]] = defaultdict(list)
 
@@ -153,12 +155,20 @@ class DigitCorrectionLitModule(L.LightningModule):
     @override
     def train_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
         dataset = NumberDataset(self.config.dataset_train, tokenizer=self.tokenizer)
-        return torch.utils.data.DataLoader(dataset, batch_size=self.config.batch_size)
+        return torch.utils.data.DataLoader(
+            dataset, 
+            batch_size=self.config.batch_size,
+            collate_fn=self.collator.collate_fn,
+        )
 
     @override
     def val_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
         dataset = NumberDataset(self.config.dataset_validation, tokenizer=self.tokenizer)
-        return torch.utils.data.DataLoader(dataset, batch_size=self.config.batch_size)
+        return torch.utils.data.DataLoader(
+            dataset,
+            batch_size=self.config.batch_size,
+            collate_fn=self.collator.collate_fn,
+        )
 
     def configure_optimizers(self):
         """Configure optimizers and learning rate schedulers"""
