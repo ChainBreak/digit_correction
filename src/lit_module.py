@@ -49,13 +49,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         position_indices = batch["position_indices"]
         padding_mask = batch["padding_mask"]
         loss_mask = 1-padding_mask.float()
-#         print(f"""
-# target_token_ids:  {target_token_ids[0].tolist()}
-# input_token_ids:  {input_token_ids[0].tolist()}
-# padding_mask:     {(padding_mask[0]*1).tolist()}
-# position_indices: {position_indices[0].tolist()}
-# loss_mask:     {loss_mask[0].tolist()}
-#         """)
+
 
         output_token_logits = self.model(input_token_ids, padding_mask, position_indices)
 
@@ -80,23 +74,22 @@ class DigitCorrectionLitModule(L.LightningModule):
         padding_mask = batch["padding_mask"]
         numbers = batch["number"]
         
-        input_token_ids = self.auto_regress(input_token_ids, padding_mask, position_indices)
-
-        text_batch = self.decode(input_token_ids)
-        
-        # print(f"\n{text_batch[0]}\n")
-
-        for i, text in enumerate(text_batch):
-            try:
-                prompt_number, val_number = text.split(",")
-                edit_ratio = Levenshtein.ratio(prompt_number, val_number)
-               
-                self._validation_results["similarity_ratios"].append(edit_ratio)
-                self._validation_results["prompt_numbers"].append(self.text_to_int(prompt_number))
-                self._validation_results["val_numbers"].append(self.text_to_int(val_number))
-                self._validation_results["true_numbers"].append(numbers[i].item())
-            except ValueError as e:
-                print(e)
+        with torch.no_grad():
+            final_token_ids = self.auto_regress(input_token_ids, padding_mask, position_indices)
+     
+            text_batch = self.decode(final_token_ids)
+            
+            for i, text in enumerate(text_batch):
+                try:
+                    prompt_number, val_number = text.split(",")
+                    edit_ratio = Levenshtein.ratio(prompt_number, val_number)
+                
+                    self._validation_results["similarity_ratios"].append(edit_ratio)
+                    self._validation_results["prompt_numbers"].append(self.text_to_int(prompt_number))
+                    self._validation_results["val_numbers"].append(self.text_to_int(val_number))
+                    self._validation_results["true_numbers"].append(numbers[i].item())
+                except ValueError as e:
+                    print(e)
    
     def on_validation_epoch_end(self):
         if not self._validation_results["val_numbers"] or self.logger is None:
@@ -121,22 +114,23 @@ class DigitCorrectionLitModule(L.LightningModule):
 
 
     def auto_regress(self, input_token_ids, padding_mask, position_indices):
-        for _ in range(self.config.model.max_token_length):
-#             print(f"""
-# input_token_ids:  {input_token_ids[0].tolist()}
-# padding_mask:     {(padding_mask[0]*1).tolist()}
-# position_indices: {position_indices[0].tolist()}
-#             """)
+        
+        for _ in range(self.config.dataset_train.num_digits+4):
             input_token_ids, position_indices, padding_mask = self.auto_regress_step(input_token_ids, padding_mask, position_indices)
         return input_token_ids
 
     def auto_regress_step(self, input_token_ids, padding_mask, position_indices):
 
+        # Get the output logits for every every token at every position for the batch
         output_token_logits = self.model(input_token_ids, padding_mask, position_indices)
+        
+        # Convert the logits to probabilities just for the last tokens of the batch
         output_token_probs = F.softmax(output_token_logits[:, -1, :], dim=-1)
+        
+        # Sample the next token for the batch
         next_token = torch.multinomial(output_token_probs, num_samples=1)
 
-
+        # Append the next token to the input token ids and the position indices and the padding mask
         input_token_ids = torch.cat([input_token_ids, next_token], dim=1)
         position_indices = torch.cat([position_indices, position_indices[:, -1:] + 1], dim=1)
         padding_mask = torch.cat([padding_mask, torch.zeros_like(padding_mask[:, -1:])], dim=1)
@@ -159,6 +153,7 @@ class DigitCorrectionLitModule(L.LightningModule):
             dataset, 
             batch_size=self.config.batch_size,
             collate_fn=self.collator.collate_fn,
+            num_workers=self.config.dataset_train.num_workers,
         )
 
     @override
@@ -168,6 +163,7 @@ class DigitCorrectionLitModule(L.LightningModule):
             dataset,
             batch_size=self.config.batch_size,
             collate_fn=self.collator.collate_fn,
+            num_workers=self.config.dataset_validation.num_workers,
         )
 
     def configure_optimizers(self):

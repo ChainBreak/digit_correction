@@ -16,6 +16,7 @@ python-Levenshtein
 
 # Configuration & Logging
 omegaconf
+setuptools>=65,<82  # <82 required: tensorboard needs pkg_resources (removed in 82)
 tensorboard
 
 # Development & Testing

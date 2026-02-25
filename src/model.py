@@ -37,8 +37,9 @@ class TransformerModel(nn.Module):
         )
 
         self.transformer = nn.TransformerEncoder(
-            encoder_layer=encoder_layer, 
+            encoder_layer=encoder_layer,
             num_layers=config.num_layers,
+            enable_nested_tensor=False,  # avoid MPS-unimplemented op in validation (eval mode)
         )
 
         self.classifier = nn.Linear(
@@ -50,7 +51,11 @@ class TransformerModel(nn.Module):
         x = self.embedding(x)
         x = self.pos_encoder(x, position_indices)
         seq_len = x.shape[1]
+
         causal_mask = torch.triu(torch.full((seq_len, seq_len), -1e6, device=x.device, dtype=torch.float), diagonal=1)
+
+        padding_mask = padding_mask * -1e6
+
 
         x = self.transformer(
             x,

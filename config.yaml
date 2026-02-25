@@ -38,6 +38,7 @@ dataset_train:
   conditional: true
   token_length: 15
   delete_char_prob: 0.1
+  num_workers: 0
 
 dataset_validation:
   dataset_size: 100000
@@ -46,3 +47,4 @@ dataset_validation:
   conditional: ${dataset_train.conditional}
   token_length: ${dataset_train.token_length}
   delete_char_prob: ${dataset_train.delete_char_prob}
+  num_workers: ${dataset_train.num_workers}
