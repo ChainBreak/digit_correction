@@ -95,14 +95,29 @@ class DigitCorrectionLitModule(L.LightningModule):
         if not self._validation_results["val_numbers"] or self.logger is None:
             return
 
-        fig, ax = plt.subplots()
-        ax.hist(self._validation_results["prompt_numbers"], bins=100, range=(0, 1_000_000), alpha=0.5, label="Prompt numbers")
-        ax.hist(self._validation_results["true_numbers"], bins=100, range=(0, 1_000_000), alpha=0.5, label="True numbers")
-        ax.hist(self._validation_results["val_numbers"], bins=100, range=(0, 1_000_000), alpha=0.5, label="Predicted numbers")
-        ax.set_xlabel("Number")
-        ax.set_ylabel("Count")
-        ax.set_title("Validation predicted numbers")
-        ax.legend()
+        fig, axes = plt.subplots(3, 1, figsize=(12, 16))#width, height
+        hist_range = (0, 1_000_000)
+        bins = 100
+
+        axes[0].hist(self._validation_results["true_numbers"], bins=bins, range=hist_range)
+        axes[0].set_xlabel("Number")
+        axes[0].set_ylabel("Count")
+        axes[0].set_title("True number distribution")
+
+        axes[1].hist(self._validation_results["prompt_numbers"], bins=bins, range=hist_range)
+        axes[1].set_xlabel("Number")
+        axes[1].set_ylabel("Count")
+        axes[1].set_title("Prompt number distribution")
+
+        axes[2].hist(self._validation_results["true_numbers"], bins=bins, range=hist_range, alpha=0.5, label="True numbers")
+        axes[2].hist(self._validation_results["val_numbers"], bins=bins, range=hist_range, alpha=0.5, label="Predicted numbers")
+        axes[2].set_xlabel("Number")
+        axes[2].set_ylabel("Count")
+        axes[2].set_title("True vs predicted number distribution")
+        axes[2].legend()
+
+      
+
         if hasattr(self.logger, "experiment"):
             self.logger.experiment.add_figure(
                 "validation/numbers_histogram", fig, self.current_epoch

@@ -55,8 +55,8 @@ class NumberDataset(torch.utils.data.Dataset):
 
         # Weighted choices: (mean, std) with sample weights
         choices = [
-            (max_number * 1 / 3, max_number / 20),       # peak at 1/3
-            (max_number * 2 / 3, max_number / 8),   # peak at 2/3
+            (max_number * 0.25, max_number / 20),
+            (max_number * 0.5, max_number / 8),
         ]
         weights = [0.5, 0.5]
         mean, std = random.choices(choices, weights=weights, k=1)[0]
