@@ -77,7 +77,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         with torch.no_grad():
             final_token_ids = self.auto_regress(input_token_ids, padding_mask, position_indices)
      
-            text_batch = self.decode(final_token_ids)
+            text_batch = self.decode_batch(final_token_ids)
             
             for i, text in enumerate(text_batch):
                 try:
@@ -152,7 +152,7 @@ class DigitCorrectionLitModule(L.LightningModule):
 
         return input_token_ids, position_indices, padding_mask
 
-    def decode(self, token_id_batch: torch.Tensor) -> list[str]:
+    def decode_batch(self, token_id_batch: torch.Tensor) -> list[str]:
         return [self.tokenizer.decode(tokens_ids.tolist()) for tokens_ids in token_id_batch]
 
     def text_to_int(self, text: str) -> int:
