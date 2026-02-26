@@ -7,8 +7,8 @@ class Collator:
     def __init__(self, tokenizer: Tokenizer):
         self.tokenizer = tokenizer
 
-    def collate_fn(self,batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor]:
-        max_length = max(len(item["input_token_ids"]) for item in batch)
+    def collate_fn(self,batch: list[dict[str, Any]]) -> dict[str, torch.Tensor]:
+        max_length = max(len(item["tokens"]) for item in batch)
 
         prepared_batch = [self.prepare_sample(sample, max_length) for sample in batch]
 
@@ -19,7 +19,7 @@ class Collator:
         """Prepeand padding and masks to the front of the sample such that they are all the same length"""
 
         # Find the current length of the input token ids
-        current_length = len(sample["input_token_ids"])
+        current_length = len(sample["tokens"])
 
         # Calculate the number of padding tokens needed
         padding_needed = target_length - current_length
@@ -33,9 +33,9 @@ class Collator:
         negative_mask = [1] * padding_needed
         blank_position_indices = [0] * padding_needed
 
-        sample["input_token_ids"] = torch.tensor(padding + sample["input_token_ids"])
-        if "target_token_ids" in sample:
-            sample["target_token_ids"] = torch.tensor(padding + sample["target_token_ids"])
+        sample["tokens"] = torch.tensor(padding + sample["tokens"])
+        if "target_tokens" in sample:
+            sample["target_tokens"] = torch.tensor(padding + sample["target_tokens"])
             
         sample["padding_mask"] = torch.tensor(negative_mask + positive_mask, dtype=torch.bool)
         sample["position_indices"] = torch.tensor(blank_position_indices + position_indices)

@@ -41,7 +41,7 @@ dataset_train:
   num_workers: 0
 
 dataset_validation:
-  dataset_size: 100000
+  dataset_size: 10000
   validation: true
   num_digits: ${dataset_train.num_digits}
   conditional: ${dataset_train.conditional}

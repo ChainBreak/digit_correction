@@ -9,9 +9,10 @@ class NumberDatasetConfig(BaseModel):
     dataset_size: int
     num_digits: int
     conditional: bool
-    augmentation_prob: float
+    delete_char_prob: float
     token_length: int
     validation: bool
+
 
 class NumberDataset(torch.utils.data.Dataset):
     def __init__(self, config: NumberDatasetConfig,  tokenizer: Tokenizer):
@@ -39,20 +40,19 @@ class NumberDataset(torch.utils.data.Dataset):
                 text = f"{num_str}"
 
         token_ids = self.tokenizer.encode(text=text)
-        input_token_ids = token_ids[:-1]
-        target_token_ids = token_ids[1:]
+        tokens = token_ids[:-1]
+        target_tokens = token_ids[1:]
         
         return {
             "text": text,
             "number": num,
-            "input_token_ids": input_token_ids,
-            "target_token_ids": target_token_ids, 
+            "tokens": tokens,
+            "target_tokens": target_tokens, 
         }
 
     def sample_random_number_from_distribution(self):
         max_number = 10 ** self.config.num_digits - 1
-        base_std = max_number / 10
-
+        
         # Weighted choices: (mean, std) with sample weights
         choices = [
             (max_number * 0.25, max_number / 20),
