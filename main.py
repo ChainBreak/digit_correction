@@ -70,7 +70,8 @@ def train(config):
         logger=logger,
         log_every_n_steps=cfg.logging.log_every_n_steps,
         enable_checkpointing=True,
-        enable_progress_bar=True
+        enable_progress_bar=True,
+        check_val_every_n_epoch=cfg.training.check_val_every_n_epoch,
     )
     
    

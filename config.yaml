@@ -5,8 +5,9 @@ lit_module:
   model: ${model}
   dataset_train: ${dataset_train}
   dataset_validation: ${dataset_validation}
-  learning_rate: 0.001
+  learning_rate: 0.0005
   batch_size: 128
+  num_completion_steps: 7
 
 model:
   vocab_size: 17
@@ -14,14 +15,15 @@ model:
   num_layers: 5
   num_heads: 4
   hidden_dim: 128
-  max_token_length: 20
+  max_token_length: 22
 # Training parameters
 training:
-  max_epochs: 10
+  max_epochs: 15
   num_workers: 4
   accelerator: auto  # auto, cpu, gpu, tpu
   devices: auto      # auto, 1, 2, etc.
   precision: 32      # 16, 32, 64
+  check_val_every_n_epoch: 15
  
 
 # Logging parameters
@@ -41,7 +43,7 @@ dataset_train:
   num_workers: 0
 
 dataset_validation:
-  dataset_size: 10000
+  dataset_size: 100000
   validation: true
   num_digits: ${dataset_train.num_digits}
   conditional: ${dataset_train.conditional}

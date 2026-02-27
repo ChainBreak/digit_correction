@@ -72,46 +72,58 @@ class DigitCorrectionLitModule(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         text_list = batch["text"]
         numbers = batch["number"]
+
+        for i, text in enumerate(text_list):
+            prompt_number = text.split(",")[0]
+            self._validation_results["true_numbers"].append(numbers[i].item())
+            self._validation_results["prompt_numbers"].append(self.text_to_int(prompt_number))
+        
+        for step_i in range(self.config.num_completion_steps):
+            completed_text_list = self.complete_text(text_list)
             
-        output_text_list = self.complete_text(text_list)
-        for i, text in enumerate(output_text_list):
-            try:
-                prompt_number, val_number = text.split(",")
-                edit_ratio = Levenshtein.ratio(prompt_number, val_number)
-            
-                self._validation_results["similarity_ratios"].append(edit_ratio)
-                self._validation_results["prompt_numbers"].append(self.text_to_int(prompt_number))
-                self._validation_results["val_numbers"].append(self.text_to_int(val_number))
-                self._validation_results["true_numbers"].append(numbers[i].item())
-            except ValueError as e:
-                print(e)
+            for i, text in enumerate(completed_text_list):
+                try:
+                    prompt_number_str, output_number_str = text.split(",")
+                    prompt_number = self.text_to_int(prompt_number_str)
+                    output_number = self.text_to_int(output_number_str)
+                    text_list[i] = f"{output_number},"
+                    edit_ratio = Levenshtein.ratio(prompt_number_str, output_number_str)
+                
+                    self._validation_results[f"similarity_ratios_{step_i}"].append(edit_ratio)
+                    self._validation_results[f"output_numbers_{step_i}"].append(output_number)
+                except ValueError as e:
+                    print(e)
    
     def on_validation_epoch_end(self):
-        if not self._validation_results["val_numbers"] or self.logger is None:
-            return
 
-        fig, axes = plt.subplots(3, 1, figsize=(12, 16))#width, height
+        num_steps = self.config.num_completion_steps
+        num_axes = num_steps+2
+
+        fig, axes = plt.subplots(num_axes, 1, figsize=(12, 5*num_axes))#width, height
         hist_range = (0, 1_000_000)
         bins = 100
 
-        axes[0].hist(self._validation_results["true_numbers"], bins=bins, range=hist_range)
+        axes[0].hist(self._validation_results["true_numbers"], bins=bins, range=hist_range, alpha=0.5, color="green")
         axes[0].set_xlabel("Number")
         axes[0].set_ylabel("Count")
         axes[0].set_title("True number distribution")
 
-        axes[1].hist(self._validation_results["prompt_numbers"], bins=bins, range=hist_range)
+        axes[1].hist(self._validation_results["prompt_numbers"], bins=bins, range=hist_range, alpha=0.5, color="red")
         axes[1].set_xlabel("Number")
         axes[1].set_ylabel("Count")
         axes[1].set_title("Prompt number distribution")
 
-        axes[2].hist(self._validation_results["true_numbers"], bins=bins, range=hist_range, alpha=0.5, label="True numbers")
-        axes[2].hist(self._validation_results["val_numbers"], bins=bins, range=hist_range, alpha=0.5, label="Predicted numbers")
-        axes[2].set_xlabel("Number")
-        axes[2].set_ylabel("Count")
-        axes[2].set_title("True vs predicted number distribution")
-        axes[2].legend()
+        for step_i in range(num_steps):
+            axes[step_i+2].hist(self._validation_results[f"true_numbers"], bins=bins, range=hist_range, alpha=0.5, color="green", label="True numbers")
+            axes[step_i+2].hist(self._validation_results[f"output_numbers_{step_i}"], bins=bins, range=hist_range, alpha=0.5, color="orange", label="Output numbers")
+            axes[step_i+2].legend()
+            axes[step_i+2].set_xlabel("Number")
+            axes[step_i+2].set_ylabel("Count")
+            axes[step_i+2].set_title(f"Output number distribution at step {step_i}")
 
       
+            average_similarity_ratio = sum(self._validation_results[f"similarity_ratios_{step_i}"]) / len(self._validation_results[f"similarity_ratios_{step_i}"])
+            self.log(f"average_similarity_ratio_{step_i}", average_similarity_ratio, prog_bar=True)
 
         if hasattr(self.logger, "experiment"):
             self.logger.experiment.add_figure(
@@ -119,12 +131,10 @@ class DigitCorrectionLitModule(L.LightningModule):
             )
         plt.close(fig)
 
-        average_similarity_ratio = sum(self._validation_results["similarity_ratios"]) / len(self._validation_results["similarity_ratios"])
-        self.log("average_similarity_ratio", average_similarity_ratio, prog_bar=True)
 
     def complete_text(self, text_list: list[str]) -> list[str]:
         # convert the text to tokens without the EOS token
-        
+
         tokens_list = [self.tokenizer.encode(text)[:-1] for text in text_list]
         # convert the text to tokens
 
