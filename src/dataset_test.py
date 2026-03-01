@@ -1,20 +1,32 @@
+import pytest
+
 from src.dataset import NumberDataset, NumberDatasetConfig
+from src.tokenizer import Tokenizer
 
 
-def test_dataset():
+@pytest.fixture
+def dataset():
     config = NumberDatasetConfig(
         dataset_size=100,
         num_digits=3,
-        conditional=True,
-        augmentation_prob=0.5,
-        token_length=10
+        validation=False,
+        token_length=10,
     )
-    dataset = NumberDataset(config)
+    return NumberDataset(config, tokenizer=Tokenizer())
+
+
+def test_dataset(dataset: NumberDataset):
     assert len(dataset) == 100
-    for i in range(10):
+    for i in range(100):
         sample = dataset[i]
         print(sample["text"])
-        print(sample["input_token_ids"])
-        print(sample["target_token_ids"])
-        print(sample["position_indices"])
-        print(sample["mask"])
+
+
+def test_apply_random_manipulation(dataset: NumberDataset):
+    num_str = "123456"
+    undo_command = "F"
+    print(num_str)
+    for i in range(12):
+        num_str, undo_command = dataset.apply_random_manipulation(num_str)
+        print(num_str,undo_command)
+  

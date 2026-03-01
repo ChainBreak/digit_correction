@@ -4,12 +4,10 @@ import random
 from pydantic import BaseModel
 
 from src.tokenizer import Tokenizer
-
+import src.manipulation as manipulation_module
 class NumberDatasetConfig(BaseModel):
     dataset_size: int
     num_digits: int
-    conditional: bool
-    delete_char_prob: float
     token_length: int
     validation: bool
 
@@ -26,18 +24,15 @@ class NumberDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         num = self.sample_random_number_from_distribution()
         num_str = f"{num:0{self.config.num_digits}d}"
-        augmented_num_str = self.augment_number_string(num_str)
+        
+        augmented_num_str, undo_command = self.augment_number_string(num_str)
 
-        if self.config.conditional:
-            if self.config.validation:
-                text = f"{augmented_num_str},"
-            else:
-                text = f"{augmented_num_str},{num_str}"
+        
+        if self.config.validation:
+            text = f"{augmented_num_str}|"
         else:
-            if self.config.validation:
-                text = ""
-            else:
-                text = f"{num_str}"
+            text = f"{augmented_num_str}|{undo_command}"
+       
 
         token_ids = self.tokenizer.encode(text=text)
         tokens = token_ids[:-1]
@@ -65,17 +60,38 @@ class NumberDataset(torch.utils.data.Dataset):
 
         return int(number)
 
-    def augment_number_string(self, num_str: str) -> str:
+    def augment_number_string(self, num_str: str) -> tuple[str, str]:
         
-        num_edits = random.randint(1, 3)
-        for _ in range(num_edits):
-            position = random.randint(0, len(num_str) - 1)
-            num_char = random.choice(list("0123456789"))
+        # F stands for finish
+        undo_command = "F"
+        number_of_manipulations = random.randint(0, 12 )
 
-            if random.random() < self.config.delete_char_prob:
-                num_char = ""
-                
-            num_str = num_str[:position] + num_char + num_str[position + 1:] # replace the digit at the position
+        for _ in range(number_of_manipulations):
+            num_str, undo_command = self.apply_random_manipulation(num_str)
         
-  
-        return num_str
+        return num_str, undo_command
+
+    def apply_random_manipulation(self, num_str: str) -> tuple[str, str]:
+        command_choices = ["I"]
+        if len(num_str) > 0:
+            command_choices += ["E", "D"]
+            
+        match random.choice(command_choices):
+            case "E":
+                index = random.randint(0, len(num_str) - 1)
+                char = random.choice(list("0123456789"))
+                command = f"E{index},{char}"
+            case "D":
+                index = random.randint(0, len(num_str) - 1)
+                command = f"D{index}"
+            case "I":
+                index = random.randint(0, len(num_str))
+                char = random.choice(list("0123456789"))
+                command = f"I{index},{char}"
+            case _:
+                command = ""
+
+        manipulated_num_str = manipulation_module.manipulate(num_str, command)
+        undo_command = manipulation_module.get_opposite_command(num_str, command)
+
+        return manipulated_num_str, undo_command

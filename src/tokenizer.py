@@ -3,7 +3,7 @@ class Tokenizer():
     
     def __init__(self):
         super().__init__()
-        chars = list("0123456789,")
+        chars = list("0123456789|EDIF,")
         chars.extend([
             "<SOS>",
             "<EOS>",
