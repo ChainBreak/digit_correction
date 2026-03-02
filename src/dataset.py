@@ -64,7 +64,7 @@ class NumberDataset(torch.utils.data.Dataset):
         
         # F stands for finish
         undo_command = "F"
-        number_of_manipulations = random.randint(0, 12 )
+        number_of_manipulations = random.randint(0, 6 )
 
         for _ in range(number_of_manipulations):
             num_str, undo_command = self.apply_random_manipulation(num_str)

@@ -37,8 +37,11 @@ class Tokenizer():
     ) -> str:
 
         # Find the first index where the token id is equal to self._sos_token
-        
-        sos_index = token_ids.index(self.sos_token)
+        try:
+            sos_index = token_ids.index(self.sos_token)
+        except ValueError:
+            sos_index = 0
+            
         try:
             eos_index = token_ids.index(self.eos_token)
         except ValueError:

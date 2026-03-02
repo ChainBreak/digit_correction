@@ -20,6 +20,7 @@ from src.dataset import NumberDataset
 from src.model import TransformerModel
 from src.tokenizer import Tokenizer
 from src import collate
+from src import manipulation
 
 class DigitCorrectionLitModule(L.LightningModule):
     """
@@ -49,7 +50,9 @@ class DigitCorrectionLitModule(L.LightningModule):
         position_indices = batch["position_indices"]
         padding_mask = batch["padding_mask"]
         loss_mask = 1-padding_mask.float()
-
+        # print("--------------------------------")
+        # print(self.tokenizer.decode(tokens[0].tolist()))
+        # print(self.tokenizer.decode(target_tokens[0].tolist()))
 
         output_token_logits = self.model(tokens, padding_mask, position_indices)
 
@@ -72,34 +75,47 @@ class DigitCorrectionLitModule(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         text_list = batch["text"]
         numbers = batch["number"]
+        original_numbers = [self.text_to_int(text.split("|")[0]) for text in text_list]
+        finished_list = [False] * len(text_list)
+ 
 
-        for i, text in enumerate(text_list):
-            prompt_number = text.split(",")[0]
-            self._validation_results["true_numbers"].append(numbers[i].item())
-            self._validation_results["prompt_numbers"].append(self.text_to_int(prompt_number))
         
-        for step_i in range(self.config.num_completion_steps):
+        for edit_i in range(self.config.max_edit_steps):
             completed_text_list = self.complete_text(text_list)
             
+            # for each completion in the batch
             for i, text in enumerate(completed_text_list):
+                if finished_list[i]:
+                    continue
                 try:
-                    prompt_number_str, output_number_str = text.split(",")
-                    prompt_number = self.text_to_int(prompt_number_str)
-                    output_number = self.text_to_int(output_number_str)
-                    text_list[i] = f"{output_number},"
-                    edit_ratio = Levenshtein.ratio(prompt_number_str, output_number_str)
-                
-                    self._validation_results[f"similarity_ratios_{step_i}"].append(edit_ratio)
-                    self._validation_results[f"output_numbers_{step_i}"].append(output_number)
-                except ValueError as e:
+                    prompt_number_str, response_text = text.split("|")
+                    
+                    if "F" in response_text:
+                        finished_list[i] = True
+
+                        self._validation_results["true_numbers"].append(numbers[i].item())
+                        self._validation_results["prompt_numbers"].append(original_numbers[i])
+                        self._validation_results["output_numbers"].append(self.text_to_int(prompt_number_str))
+                        continue
+
+                    manipulated_number_str = manipulation.manipulate(prompt_number_str, response_text)
+                    output_number = self.text_to_int(manipulated_number_str)
+                    text_list[i] = f"{output_number}|"
+        
+                    if i == 0:
+                        print(f"{edit_i}: finished:", finished_list[i])
+                        print(f"{edit_i}: text:", text)
+                        print(f"{edit_i}: prompt_number_str:", prompt_number_str)
+                        print(f"{edit_i}: response_text:", response_text)
+                        print(f"{edit_i}: manipulated_number_str:", manipulated_number_str)
+                except Exception as e:
                     print(e)
+
    
     def on_validation_epoch_end(self):
 
-        num_steps = self.config.num_completion_steps
-        num_axes = num_steps+2
 
-        fig, axes = plt.subplots(num_axes, 1, figsize=(12, 5*num_axes))#width, height
+        fig, axes = plt.subplots(3, 1, figsize=(12, 15))#width, height
         hist_range = (0, 1_000_000)
         bins = 100
 
@@ -113,17 +129,15 @@ class DigitCorrectionLitModule(L.LightningModule):
         axes[1].set_ylabel("Count")
         axes[1].set_title("Prompt number distribution")
 
-        for step_i in range(num_steps):
-            axes[step_i+2].hist(self._validation_results[f"true_numbers"], bins=bins, range=hist_range, alpha=0.5, color="green", label="True numbers")
-            axes[step_i+2].hist(self._validation_results[f"output_numbers_{step_i}"], bins=bins, range=hist_range, alpha=0.5, color="orange", label="Output numbers")
-            axes[step_i+2].legend()
-            axes[step_i+2].set_xlabel("Number")
-            axes[step_i+2].set_ylabel("Count")
-            axes[step_i+2].set_title(f"Output number distribution at step {step_i}")
 
-      
-            average_similarity_ratio = sum(self._validation_results[f"similarity_ratios_{step_i}"]) / len(self._validation_results[f"similarity_ratios_{step_i}"])
-            self.log(f"average_similarity_ratio_{step_i}", average_similarity_ratio, prog_bar=True)
+        axes[2].hist(self._validation_results[f"true_numbers"], bins=bins, range=hist_range, alpha=0.5, color="green", label="True numbers")
+        axes[2].hist(self._validation_results[f"output_numbers"], bins=bins, range=hist_range, alpha=0.5, color="orange", label="Output numbers")
+        axes[2].legend()
+        axes[2].set_xlabel("Number")
+        axes[2].set_ylabel("Count")
+        axes[2].set_title(f"Output number distribution")
+
+
 
         if hasattr(self.logger, "experiment"):
             self.logger.experiment.add_figure(
@@ -133,12 +147,13 @@ class DigitCorrectionLitModule(L.LightningModule):
 
 
     def complete_text(self, text_list: list[str]) -> list[str]:
+
         # convert the text to tokens without the EOS token
-
         tokens_list = [self.tokenizer.encode(text)[:-1] for text in text_list]
-        # convert the text to tokens
 
+        # convert the text to tokens dict used for the collator
         dataset_items = [{"tokens": tokens} for tokens in tokens_list]
+
         # collate the tokens into a batch
         batch = self.collator.collate_fn(dataset_items)
 
@@ -154,7 +169,7 @@ class DigitCorrectionLitModule(L.LightningModule):
 
     def auto_regress(self, tokens, padding_mask, position_indices):
         
-        for _ in range(self.config.dataset_train.num_digits+4):
+        for _ in range(self.config.max_auto_regress_steps):
             tokens, position_indices, padding_mask = self.auto_regress_step(tokens, padding_mask, position_indices)
         return tokens
 

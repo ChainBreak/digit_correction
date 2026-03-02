@@ -4,8 +4,8 @@
 # 123456|F
 
 def manipulate(s: str, command: str) -> str:
-
-    match extract_command_and_args(command):
+    command, args = extract_command_and_args(command)
+    match (command, args):
         case ("E", [index, char]):
             index = int(index)
             return s[:index] + char + s[index + 1 :]
@@ -16,10 +16,12 @@ def manipulate(s: str, command: str) -> str:
             index = int(index)
             return s[:index] + char + s[index:]
         case _:
+            # print(f"Unknown command: {command} {args}")
             return s
 
 def get_opposite_command(s: str, command: str) -> str:
-    match extract_command_and_args(command):
+    command, args = extract_command_and_args(command)
+    match (command, args):
         case ("E", [index, char]):
             index = int(index)
             original_char = s[index]
@@ -32,6 +34,7 @@ def get_opposite_command(s: str, command: str) -> str:
             index = int(index)
             return "D" + str(index)
         case _:
+            # print(f"Unknown command: {command} {args}")
             return s
     
 def extract_command_and_args(command: str) -> tuple[str, list[str]]:

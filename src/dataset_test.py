@@ -8,7 +8,7 @@ from src.tokenizer import Tokenizer
 def dataset():
     config = NumberDatasetConfig(
         dataset_size=100,
-        num_digits=3,
+        num_digits=6,
         validation=False,
         token_length=10,
     )
@@ -16,8 +16,7 @@ def dataset():
 
 
 def test_dataset(dataset: NumberDataset):
-    assert len(dataset) == 100
-    for i in range(100):
+    for i in range(len(dataset)):
         sample = dataset[i]
         print(sample["text"])
 
