@@ -81,11 +81,17 @@ class DigitCorrectionLitModule(L.LightningModule):
             prompt_list = [f"{number_task.current_str}|" for number_task in numbers_to_manipulate]
             completed_text_list = self.complete_text(prompt_list)
             next_numbers_to_manipulate = []
+
+            # Pick a number and record the history as it is being manipulated
+            history_list = []
+            number_task_to_record = numbers_to_manipulate[0]
             
             # for each completion in the batch
             for text, number in zip(completed_text_list, numbers_to_manipulate):
                 try:
-                    # if batch_idx % 10 == 0 and edit_i == 0:
+                    if batch_idx % 10 == 0 and number == number_task_to_record:
+                        history_list.append(text)
+
                     prompt_number_str, response_text = text.split("|")
                     
                     # F is for finished
@@ -93,6 +99,14 @@ class DigitCorrectionLitModule(L.LightningModule):
                         self._validation_results["true_numbers"].append(self.text_to_int(number.true_str))
                         self._validation_results["prompt_numbers"].append(self.text_to_int(number.starting_str))
                         self._validation_results["output_numbers"].append(self.text_to_int(number.current_str))
+                        if len(history_list) > 0:
+                            history_text = "\n".join(history_list)\
+                            self.logger.experiment.add_text(
+                                "validation/history",
+                                history_text,
+                                self.current_epoch
+                            )
+
                         continue # task is complete, don't add to next_numbers_to_manipulate
                     else:
                         manipulated_number_str = manipulation.manipulate(prompt_number_str, response_text)
