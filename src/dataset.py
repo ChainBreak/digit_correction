@@ -17,6 +17,7 @@ class NumberDataset(torch.utils.data.Dataset):
     def __init__(self, config: NumberDatasetConfig,  tokenizer: Tokenizer):
         self.config = config
         self.tokenizer = tokenizer
+        self.max_number = 10 ** self.config.num_digits - 1
 
 
     def __len__(self):
@@ -50,17 +51,16 @@ class NumberDataset(torch.utils.data.Dataset):
             }
 
     def sample_random_number_from_distribution(self):
-        max_number = 10 ** self.config.num_digits - 1
         
         # Weighted choices: (mean, std) with sample weights
         choices = [
-            (max_number * 0.25, max_number / 20),
-            (max_number * 0.5, max_number / 8),
+            (self.max_number * 0.25, self.max_number / 20),
+            (self.max_number * 0.5, self.max_number / 8),
         ]
         weights = [0.5, 0.5]
         mean, std = random.choices(choices, weights=weights, k=1)[0]
         number = random.normalvariate(mean, std)
-        number = min(max(number, 0), max_number)
+        number = min(max(number, 0), self.max_number)
 
         return int(number)
 
@@ -68,14 +68,14 @@ class NumberDataset(torch.utils.data.Dataset):
         
         # F stands for finish
         undo_command = "F"
-        number_of_manipulations = random.randint(0, 6 )
+        number_of_manipulations = random.randint(0, 12 )
 
         for _ in range(number_of_manipulations):
-            num_str, undo_command = self.apply_random_manipulation(num_str)
+            num_str, _, undo_command = self.apply_random_manipulation(num_str)
         
         return num_str, undo_command
 
-    def apply_random_manipulation(self, num_str: str) -> tuple[str, str]:
+    def apply_random_manipulation(self, num_str: str) -> tuple[str, str, str]:
         command_choices = ["I"]
         if len(num_str) > 0:
             command_choices += ["E", "D"]
@@ -98,7 +98,7 @@ class NumberDataset(torch.utils.data.Dataset):
         manipulated_num_str = manipulation_module.manipulate(num_str, command)
         undo_command = manipulation_module.get_opposite_command(num_str, command)
 
-        return manipulated_num_str, undo_command
+        return manipulated_num_str, command,undo_command
 
 @dataclasses.dataclass
 class NumberTask:

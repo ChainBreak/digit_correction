@@ -26,6 +26,6 @@ def test_apply_random_manipulation(dataset: NumberDataset):
     undo_command = "F"
     print(num_str)
     for i in range(12):
-        num_str, undo_command = dataset.apply_random_manipulation(num_str)
-        print(num_str,undo_command)
+        num_str, command, undo_command = dataset.apply_random_manipulation(num_str)
+        print(f"{command:<4} | {num_str:<10} | {undo_command:<4}")
   
