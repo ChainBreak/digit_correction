@@ -5,7 +5,7 @@ lit_module:
   model: ${model}
   dataset_train: ${dataset_train}
   dataset_validation: ${dataset_validation}
-  learning_rate: 0.0001
+  learning_rate: 0.001
   batch_size: 128
   max_edit_steps: 20
   max_auto_regress_steps: 5

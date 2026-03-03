@@ -88,17 +88,19 @@ class DigitCorrectionLitModule(L.LightningModule):
                     # if batch_idx % 10 == 0 and edit_i == 0:
                     prompt_number_str, response_text = text.split("|")
                     
+                    # F is for finished
                     if "F" in response_text:
                         self._validation_results["true_numbers"].append(self.text_to_int(number.true_str))
                         self._validation_results["prompt_numbers"].append(self.text_to_int(number.starting_str))
                         self._validation_results["output_numbers"].append(self.text_to_int(number.current_str))
+                        continue # task is complete, don't add to next_numbers_to_manipulate
                     else:
                         manipulated_number_str = manipulation.manipulate(prompt_number_str, response_text)
-                        number.current_str = manipulated_number_str
-                        next_numbers_to_manipulate.append(number)
+                        number.current_str = self.sanitize_number_text(manipulated_number_str)
                 except Exception as e:
-                    next_numbers_to_manipulate.append(number)
+                    pass
                     # print(e,text)
+                next_numbers_to_manipulate.append(number)
 
             numbers_to_manipulate = next_numbers_to_manipulate
 
@@ -190,6 +192,11 @@ class DigitCorrectionLitModule(L.LightningModule):
             return int(text)
         except ValueError:
             return 0 
+
+    def sanitize_number_text(self, text: str) -> str:
+        if text == "":
+            return ""
+        return f"{int(text)}"
 
     @override
     def train_dataloader(self) -> torch.utils.data.DataLoader[dict[str, torch.Tensor]]:
