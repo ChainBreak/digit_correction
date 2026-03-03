@@ -13,10 +13,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from torch.optim import Adam
-from torch.optim.lr_scheduler import ReduceLROnPlateau
-import Levenshtein
 
-from src.dataset import NumberDataset
+from src.dataset import NumberDataset, NumberTask
 from src.model import TransformerModel
 from src.tokenizer import Tokenizer
 from src import collate
@@ -73,43 +71,36 @@ class DigitCorrectionLitModule(L.LightningModule):
         self._validation_results = defaultdict(list)
 
     def validation_step(self, batch, batch_idx):
-        text_list = batch["text"]
-        numbers = batch["number"]
-        original_numbers = [self.text_to_int(text.split("|")[0]) for text in text_list]
-        finished_list = [False] * len(text_list)
- 
+        numbers_to_manipulate: list[NumberTask] = batch
 
-        
         for edit_i in range(self.config.max_edit_steps):
-            completed_text_list = self.complete_text(text_list)
+
+            if len(numbers_to_manipulate) == 0:
+                break
+            
+            prompt_list = [f"{number_task.current_str}|" for number_task in numbers_to_manipulate]
+            completed_text_list = self.complete_text(prompt_list)
+            next_numbers_to_manipulate = []
             
             # for each completion in the batch
-            for i, text in enumerate(completed_text_list):
-                if finished_list[i]:
-                    continue
+            for text, number in zip(completed_text_list, numbers_to_manipulate):
                 try:
+                    # if batch_idx % 10 == 0 and edit_i == 0:
                     prompt_number_str, response_text = text.split("|")
                     
                     if "F" in response_text:
-                        finished_list[i] = True
-
-                        self._validation_results["true_numbers"].append(numbers[i].item())
-                        self._validation_results["prompt_numbers"].append(original_numbers[i])
-                        self._validation_results["output_numbers"].append(self.text_to_int(prompt_number_str))
-                        continue
-
-                    manipulated_number_str = manipulation.manipulate(prompt_number_str, response_text)
-                    output_number = self.text_to_int(manipulated_number_str)
-                    text_list[i] = f"{output_number}|"
-        
-                    if i == 0:
-                        print(f"{edit_i}: finished:", finished_list[i])
-                        print(f"{edit_i}: text:", text)
-                        print(f"{edit_i}: prompt_number_str:", prompt_number_str)
-                        print(f"{edit_i}: response_text:", response_text)
-                        print(f"{edit_i}: manipulated_number_str:", manipulated_number_str)
+                        self._validation_results["true_numbers"].append(self.text_to_int(number.true_str))
+                        self._validation_results["prompt_numbers"].append(self.text_to_int(number.starting_str))
+                        self._validation_results["output_numbers"].append(self.text_to_int(number.current_str))
+                    else:
+                        manipulated_number_str = manipulation.manipulate(prompt_number_str, response_text)
+                        number.current_str = manipulated_number_str
+                        next_numbers_to_manipulate.append(number)
                 except Exception as e:
-                    print(e)
+                    next_numbers_to_manipulate.append(number)
+                    # print(e,text)
+
+            numbers_to_manipulate = next_numbers_to_manipulate
 
    
     def on_validation_epoch_end(self):
@@ -216,7 +207,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         return torch.utils.data.DataLoader(
             dataset,
             batch_size=self.config.batch_size,
-            collate_fn=self.collator.collate_fn,
+            collate_fn=lambda x: x, # no collate needed, just return the batch as a list
             num_workers=self.config.dataset_validation.num_workers,
         )
 
@@ -224,4 +215,7 @@ class DigitCorrectionLitModule(L.LightningModule):
         """Configure optimizers and learning rate schedulers"""
         optimizer = Adam(self.parameters(), lr=self.config.learning_rate)
         return optimizer
-    
+
+
+
+

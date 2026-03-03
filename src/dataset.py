@@ -2,9 +2,10 @@ import torch
 import torch.utils.data
 import random
 from pydantic import BaseModel
-
 from src.tokenizer import Tokenizer
 import src.manipulation as manipulation_module
+import dataclasses
+
 class NumberDatasetConfig(BaseModel):
     dataset_size: int
     num_digits: int
@@ -29,21 +30,24 @@ class NumberDataset(torch.utils.data.Dataset):
 
         
         if self.config.validation:
-            text = f"{augmented_num_str}|"
+            return NumberTask(
+                starting_str=augmented_num_str,
+                true_str=f"{num}",
+                current_str=augmented_num_str,
+            )
         else:
             text = f"{augmented_num_str}|{undo_command}"
        
-
-        token_ids = self.tokenizer.encode(text=text)
-        tokens = token_ids[:-1]
-        target_tokens = token_ids[1:]
-        
-        return {
-            "text": text,
-            "number": num,
-            "tokens": tokens,
-            "target_tokens": target_tokens, 
-        }
+            token_ids = self.tokenizer.encode(text=text)
+            tokens = token_ids[:-1]
+            target_tokens = token_ids[1:]
+            
+            return {
+                "text": text,
+                "number": num,
+                "tokens": tokens,
+                "target_tokens": target_tokens, 
+            }
 
     def sample_random_number_from_distribution(self):
         max_number = 10 ** self.config.num_digits - 1
@@ -95,3 +99,9 @@ class NumberDataset(torch.utils.data.Dataset):
         undo_command = manipulation_module.get_opposite_command(num_str, command)
 
         return manipulated_num_str, undo_command
+
+@dataclasses.dataclass
+class NumberTask:
+    starting_str: str
+    true_str: str
+    current_str: str
