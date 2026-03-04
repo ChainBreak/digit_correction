@@ -13,6 +13,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from torch.optim import Adam
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 from src.dataset import NumberDataset, NumberTask
 from src.model import TransformerModel
@@ -109,7 +110,7 @@ class DigitCorrectionLitModule(L.LightningModule):
                             self.logger.experiment.add_text(
                                 "validation/history",
                                 history_text,
-                                self.current_epoch
+                                self.current_epoch * 1000 + batch_idx
                             )
 
                         continue # task is complete, don't add to next_numbers_to_manipulate
@@ -240,7 +241,15 @@ class DigitCorrectionLitModule(L.LightningModule):
     def configure_optimizers(self):
         """Configure optimizers and learning rate schedulers"""
         optimizer = Adam(self.parameters(), lr=self.config.learning_rate)
-        return optimizer
+        scheduler = CosineAnnealingLR(optimizer, T_max=self.config.max_epochs, eta_min=0.0)
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+            },
+        }
 
 
 

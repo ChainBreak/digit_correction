@@ -7,6 +7,7 @@ lit_module:
   dataset_validation: ${dataset_validation}
   learning_rate: 0.001
   batch_size: 128
+  max_epochs: ${training.max_epochs}
   max_edit_steps: 20
   max_auto_regress_steps: 5
 
@@ -26,7 +27,7 @@ training:
   accelerator: auto  # auto, cpu, gpu, tpu
   devices: auto      # auto, 1, 2, etc.
   precision: 32      # 16, 32, 64
-  check_val_every_n_epoch: 2
+  check_val_every_n_epoch: 10
  
 
 # Logging parameters
@@ -46,7 +47,7 @@ dataset_train:
   num_workers: 0
 
 dataset_validation:
-  dataset_size: 10000
+  dataset_size: 100000
   validation: true
   num_digits: ${dataset_train.num_digits}
   conditional: ${dataset_train.conditional}
