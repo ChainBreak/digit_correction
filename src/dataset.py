@@ -79,11 +79,13 @@ class NumberDataset(torch.utils.data.Dataset):
         command_choices = ["I"]
         if len(num_str) > 0:
             command_choices += ["E", "D"]
+
+        command_choices = ["E"]
             
         match random.choice(command_choices):
             case "E":
                 index = random.randint(0, len(num_str) - 1)
-                char = random.choice(list("0123456789"))
+                char = random.choice(list("123456789"))
                 command = f"E{index},{char}"
             case "D":
                 index = random.randint(0, len(num_str) - 1)
